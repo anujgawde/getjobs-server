@@ -7,6 +7,6 @@ export class AppController {
 
   @Get('/check-connection')
   checkConnection() {
-    this.appService.checkConnection();
+    return this.appService.checkConnection();
   }
 }
