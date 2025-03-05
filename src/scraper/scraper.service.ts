@@ -337,12 +337,11 @@ export class ScraperService {
       const cachedJobs = this.cache.get(cacheKey);
 
       if (cachedJobs) {
-        console.log('Returning cached results', cachedJobs);
         await this.generateExcelFile(cachedJobs, res);
         return;
       }
 
-      while (offset < 1) {
+      while (offset < 2) {
         try {
           const currentPageJobs = await this.fetchCurrentPageJobs(rest, offset);
 
