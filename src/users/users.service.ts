@@ -49,11 +49,14 @@ export class UsersService {
       where: { email: userData.email },
     });
 
-    if (!user) {
-      user = this.usersRepository.create({
-        email: userData.email,
-        verified: false,
-      });
+    if (!user?.verified) {
+      if (!user) {
+        user = this.usersRepository.create({
+          email: userData.email,
+          verified: false,
+        });
+        await this.usersRepository.save(user);
+      }
 
       const issuedToken = this.issuedTokensRepository.create({
         email: userData.email,
@@ -61,22 +64,21 @@ export class UsersService {
       });
 
       await this.issuedTokensRepository.save(issuedToken);
-      await this.usersRepository.save(user);
 
-      const link = `${process.env.CLIENT_BASE_URL}/verify?token=${token}`;
+      const link = `${process.env.CLIENT_BASE_URL}/verify?tid=${token}`;
 
       const htmlContent = `
-            <div style="font-family: Arial, sans-serif; text-align: center; padding: 20px;">
-              <h2 style="color: #0077B5;">Verify Your Email</h2>
-              <p style="color: #0077B5;">Thank you for registering! Please click the button below to verify your email address.</p>
-              <a href="${link}" style="display: inline-block; padding: 10px 20px; font-size: 16px; color: #fff; background-color: #0077B5; text-decoration: none; border-radius: 5px;">Verify Email</a>
-              <p style="color: #0077B5; margin-top: 10px;">If you did not request this, please ignore this email.</p>
-            </div>
+      <div style="font-family: Arial, sans-serif; text-align: center; padding: 20px;">
+      <h2 style="color: #000;">Verify Your Email</h2>
+      <p style="color: #000;">Thank you for registering! Please click the button below to verify your email address.</p>
+      <a href="${link}" style="display: inline-block; padding: 10px 20px; font-size: 16px; color: #fff; background-color: #5465FF; text-decoration: none; border-radius: 5px;">Verify Email</a>
+      <p style="color: #000; margin-top: 10px;">If you did not request this, please ignore this email.</p>
+    </div>
           `;
 
       await this.transporter.sendMail({
         from: `${process.env.EMAIL_AUTH_USER}@gmail.com`,
-        to: user.email,
+        to: userData.email,
         subject: 'Get-Jobs Email Verificaiton',
         html: htmlContent,
       });
@@ -100,12 +102,8 @@ export class UsersService {
   }
 
   // Currently, one user (email) can search jobs utmost 3 times in 24 hours. This method validates user's search attempt.
-  async validateSearchAttempt(loggedInUserData: {
-    loggedInUser: string;
-  }): Promise<boolean> {
-    const user = await this.usersRepository.findOne({
-      where: { email: loggedInUserData.loggedInUser },
-    });
+  async validateSearchAttempt(email: string): Promise<boolean> {
+    const user = await this.getUser({ email });
     const userSearch = await this.userSearchAttemptsRepository.findOne({
       where: { user: { id: user.id } },
     });
@@ -133,7 +131,7 @@ export class UsersService {
       return true;
     } else {
       const newUserSearch = this.userSearchAttemptsRepository.create({
-        user: { id: userSearch.user.id },
+        user: { id: user.id },
         firstSearchTimestamp: now,
         searchCount: 1,
       });
